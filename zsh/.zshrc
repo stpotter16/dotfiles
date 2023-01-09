@@ -103,4 +103,4 @@ source $ZSH/oh-my-zsh.sh
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
 # Setup XDG Config
-export XDG_CONFIG_HOME="/Users/spotter/.config"
+export XDG_CONFIG_HOME="$HOME/.config"
