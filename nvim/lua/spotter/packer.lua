@@ -26,4 +26,6 @@ return require('packer').startup(function(use)
   use 'mbbill/undotree'
 
   use 'TimUntersberger/neogit'
+
+  use('theprimeagen/harpoon')
   end)
