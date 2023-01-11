@@ -104,3 +104,7 @@ source $ZSH/oh-my-zsh.sh
 
 # Setup XDG Config
 export XDG_CONFIG_HOME="$HOME/.config"
+# Make sure my script kiddie BS is available
+export PATH=$PATH:$HOME/.local/scripts
+# Tmux baby
+bindkey -s ^f "tmux-sessionizer\n"
