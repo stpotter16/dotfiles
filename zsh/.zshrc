@@ -108,3 +108,7 @@ export XDG_CONFIG_HOME="$HOME/.config"
 export PATH=$PATH:$HOME/.local/scripts
 # Tmux baby
 bindkey -s ^f "tmux-sessionizer\n"
+# pyenv nonsense
+export PATH="~/.pyenv/bin:$PATH"
+eval "$(pyenv init -)"
+eval "$(pyenv virtualenv-init -)"
