@@ -20,4 +20,14 @@ vim.keymap.set("n", "<leader>y", "\"+y")
 vim.keymap.set("n", "<leader>Y", "\"+Y")
 vim.keymap.set("v", "<leader>y", "\"+y")
 
--- TODO: Add remap of <C-f> to tmux-sessionizer
+-- Add remap of <C-f> to tmux-sessionizer
+vim.keymap.set("n", "<C-f>", "<cmd>silent !tmux neww tmux-sessionizer<CR>")
+
+-- Format code -- need to upgrade neovim
+-- vim.keymap.set("n", "<leader>f", vim.lsp.buf.format)
+
+-- Delete and keep buffer contents
+vim.keymap.set("x", "<leader>P", [["_dP]])
+
+-- Delete to null buffer
+vim.keymap.set({"n", "v"}, "<leader>d", [["_d]])
