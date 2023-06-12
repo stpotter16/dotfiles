@@ -112,3 +112,6 @@ bindkey -s ^f "tmux-sessionizer\n"
 export PATH="$HOME/.pyenv/bin:$PATH"
 eval "$(pyenv init -)"
 eval "$(pyenv virtualenv-init -)"
+# Alias to neovim
+alias vi="nvim"
+alias vim="nvim"
