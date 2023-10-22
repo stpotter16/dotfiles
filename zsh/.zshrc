@@ -115,3 +115,5 @@ eval "$(pyenv virtualenv-init -)"
 # Alias to neovim
 alias vi="nvim"
 alias vim="nvim"
+# Add go to path
+export PATH=$PATH:/usr/local/go/bin
