@@ -5,7 +5,7 @@ if [[ -z $DOTFILES ]]; then
 fi
 
 if [[ -z $STOW_FOLDERS ]]; then
-	STOW_FOLDERS=tmux,zsh
+	STOW_FOLDERS=tmux,zsh,bin,nvim
 fi
 
 pushd $DOTFILES
