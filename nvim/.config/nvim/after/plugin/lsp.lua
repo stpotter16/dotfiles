@@ -1,4 +1,16 @@
-local lsp = require('lsp-zero')
+local lsp_zero = require('lsp-zero')
 
-lsp.preset('recommended')
-lsp.setup()
+lsp_zero.on_attach(function(client, bufnr)
+    lsp_zero.default_keymaps({butter = bufnr})
+end)
+
+require('mason').setup({})
+require('mason-lspconfig').setup({
+    ensure_installed = {},
+    handlers = {
+        function(server_name)
+            require('lspconfig')[server_name].setup({})
+        end,
+    }
+})
+
