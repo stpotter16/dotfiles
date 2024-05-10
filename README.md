@@ -11,4 +11,5 @@ My Configs
 - The github host verification
 - The treesitter errors
 - The need to overwrite existing files
+- Fix the go binaries not showing up
 
