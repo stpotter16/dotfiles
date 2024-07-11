@@ -118,3 +118,4 @@ alias vim="nvim"
 export PATH=$PATH:/usr/local/go/bin
 export FLYCTL_INSTALL="/home/sampotter/.fly"
 export PATH="$FLYCTL_INSTALL/bin:$PATH"
+export PATH=$PATH:/$HOME/go/bin
