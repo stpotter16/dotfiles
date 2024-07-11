@@ -14,3 +14,5 @@ require('mason-lspconfig').setup({
     }
 })
 
+vim.filetype.add({ extension = { templ = "templ" } })
+
