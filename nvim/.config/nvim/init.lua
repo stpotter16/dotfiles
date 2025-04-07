@@ -1,1 +1,1 @@
-require("spotter")
+require("config.lazy")
