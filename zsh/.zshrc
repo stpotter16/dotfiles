@@ -102,6 +102,8 @@ source $ZSH/oh-my-zsh.sh
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
+# Make sure fd is on path
+export PATH=$PATH:$HOME/.local/bin
 # Setup XDG Config
 export XDG_CONFIG_HOME="$HOME/.config"
 # Make sure my script kiddie BS is available
