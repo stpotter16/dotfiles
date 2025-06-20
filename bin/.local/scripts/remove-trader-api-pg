@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+# Fail on first error
+set -e
+
+# Fail on unset variables
+set -u
+
+# Echo commands
+set -x
+
+# Stop container, destroy container, destroy volume
+docker container stop $TRADER_API_PG_CONTAINER
+
+docker container rm $TRADER_API_PG_CONTAINER
+
+docker volume rm $TRADER_API_PG_VOLUME
