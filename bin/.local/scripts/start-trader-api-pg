@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+# Fail on first error
+set -e
+
+# Fail on unset variables
+
+set -u
+
+docker container stop $TRADER_API_PG_CONTAINER
+
