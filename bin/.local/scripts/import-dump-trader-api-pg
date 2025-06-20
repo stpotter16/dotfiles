@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+
+# Fail on first error
+set -e
+
+# Fail on unset variables
+set -u
+
+# Echo commands
+set -x
+
+# Echo out the input file path run the input command
+if [[ $# -ne 1 ]]; then
+    echo "Path to dump file required"
+    exit 1
+else
+    dumpFile=$1
+    if [[ -x $dumpFile ]]; then
+        echo "Restoring with $dumpFile"
+        # Wait for user
+        read -n 1 -p "Continue?"
+        psql -U $USER -h localhost -d $TRADER_API_PG_DB -f $dumpFile
+    else
+        echo "Input file does not exist"
+        exit 1
+    fi
+fi
