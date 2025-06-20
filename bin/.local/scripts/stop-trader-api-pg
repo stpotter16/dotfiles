@@ -9,5 +9,5 @@ set -u
 # Echo commands
 set -x
 
-docker container start $TRADER_API_PG_CONTAINER
+docker container stop $TRADER_API_PG_CONTAINER
 
