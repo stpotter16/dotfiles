@@ -139,3 +139,9 @@ if [ -e /home/balrog/.nix-profile/etc/profile.d/nix.sh ]; then . /home/balrog/.n
 export NVM_DIR="$HOME/.config/nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+
+# Trader API local
+export TRADER_API_PG_CONTAINER="trader-api-pg"
+export TRADER_API_PG_VOLUME="trader-api-pg-db"
+export TRADER_API_LOCAL_PG_PASS="localTraderPass"
+export TRADER_API_PG_DB="henlocal"
