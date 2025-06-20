@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+
+# Fail on first error
+set -e
+
+# Fail on unset variables
+set -u
+
+# Echo commands
+set -x
+
+# Pull image, create a volume, start container
+docker pull postgres
+
+docker volume create $TRADER_API_PG_VOLUME
+
+docker run --name $TRADER_API_PG_CONTAINER \
+    -e POSTGRES_USER=$USER \
+    -e POSTGRES_PASSWORD=$TRADER_API_LOCAL_PG_PASS \
+    -e POSTGRES_DB=$TRADER_API_PG_DB \
+    -p 5432:5432 \
+    -v $TRADER_API_PG_VOLUME:/var/lib/postgresql/data \
+    -d postgres
