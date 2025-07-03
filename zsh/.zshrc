@@ -146,3 +146,7 @@ export TRADER_API_PG_VOLUME="trader-api-pg-db"
 export TRADER_API_LOCAL_PG_PASS="localTraderPass"
 export TRADER_API_PG_DB="henlocal"
 alias trader-api-local-pg="psql -U $USER -h localhost -p 5432 -d $TRADER_API_PG_DB"
+
+function fco {
+    git checkout $(git branch | fzf)
+}
