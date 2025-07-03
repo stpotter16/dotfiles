@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+
+# Fail on first error
+set -e
+
+# Fail on unset variables
+set -u
+
+if [[ $# -gt 1 ]]; then
+    echo "Too many arguments"
+    exit 1
+fi
+
+if [[ $# -eq 1 ]]; then
+    TYPE=$#
+else
+    read -rp "Branch type: " TYPE
+fi
+
+read -rp "Sprint info: " SPRINT
+read -rp "Ticket number: " TICKET
+read -rp "Branch description: " RAW_DESCRIPTION
+
+DESCRIPTION=$(echo "$RAW_DESCRIPTION" | tr " " -)
+
+BRANCH="$TYPE/$SPRINT/$TICKET-$DESCRIPTION"
+
+if [[ $(git rev-parse --verify "$BRANCH") ]]; then
+    git checkout "$BRANCH"
+else
+    echo "Creating new branch $BRANCH"
+    git checkout -b "$BRANCH"
+fi
+
