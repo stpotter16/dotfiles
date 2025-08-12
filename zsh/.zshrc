@@ -150,3 +150,8 @@ alias trader-api-local-pg="psql -U $USER -h localhost -p 5432 -d $TRADER_API_PG_
 function fco {
     git checkout $(git branch | fzf)
 }
+
+function today {
+    nvim +$(grep -n $(date | cut -d ' ' -f1) ${HOME}/personal/plans/week.md | cut -d : -f1) ${HOME}/personal/plans/week.md
+}
+
