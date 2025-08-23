@@ -108,14 +108,6 @@ export XDG_CONFIG_HOME="$HOME/.config"
 export PATH=$PATH:$HOME/.local/scripts
 # Tmux baby
 bindkey -s ^f "tmux-sessionizer\n"
-# pyenv nonsense
-export PATH="$HOME/.pyenv/bin:$PATH"
-eval "$(pyenv init -)"
 # Alias to neovim
 alias vi="nvim"
 alias vim="nvim"
-# Add go to path
-export PATH=$PATH:/usr/local/go/bin
-export FLYCTL_INSTALL="/home/sampotter/.fly"
-export PATH="$FLYCTL_INSTALL/bin:$PATH"
-export PATH=$PATH:$HOME/go/bin
