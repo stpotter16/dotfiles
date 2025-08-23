@@ -111,3 +111,5 @@ bindkey -s ^f "tmux-sessionizer\n"
 # Alias to neovim
 alias vi="nvim"
 alias vim="nvim"
+
+if [ -e /home/balrog/.nix-profile/etc/profile.d/nix.sh ]; then . /home/balrog/.nix-profile/etc/profile.d/nix.sh; fi # added by Nix installer
