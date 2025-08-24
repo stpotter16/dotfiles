@@ -112,4 +112,13 @@ bindkey -s ^f "tmux-sessionizer\n"
 alias vi="nvim"
 alias vim="nvim"
 
+is_nix() {
+    if [[ -n ${IN_NIX_SHELL} ]]; then
+        echo "(nix-shell) - "
+    fi
+}
+
+# Custom Prompt
+export PROMPT="$(is_nix)${PROMPT}"
+
 if [ -e /home/balrog/.nix-profile/etc/profile.d/nix.sh ]; then . /home/balrog/.nix-profile/etc/profile.d/nix.sh; fi # added by Nix installer
