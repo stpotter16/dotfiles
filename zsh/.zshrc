@@ -159,7 +159,15 @@ function today {
     nvim +$(grep -n $(date | cut -d ' ' -f1) ${HOME}/personal/plans/week.md | cut -d : -f1) ${HOME}/personal/plans/week.md
 }
 
-# Amazon Q post block. Keep at the bottom of this file.
-[[ -f "${HOME}/.local/share/amazon-q/shell/zshrc.post.zsh" ]] && builtin source "${HOME}/.local/share/amazon-q/shell/zshrc.post.zsh"
+function is_nix() {
+    if [[ -n ${IN_NIX_SHELL} ]]; then
+        echo "(nix-shell) - "
+    fi
+}
+
+export PROMPT="$(is_nix)${PROMPT}"
 
 if [ -e /home/balrog/.nix-profile/etc/profile.d/nix.sh ]; then . /home/balrog/.nix-profile/etc/profile.d/nix.sh; fi # added by Nix installer
+
+# Amazon Q post block. Keep at the bottom of this file.
+[[ -f "${HOME}/.local/share/amazon-q/shell/zshrc.post.zsh" ]] && builtin source "${HOME}/.local/share/amazon-q/shell/zshrc.post.zsh"
