@@ -161,3 +161,5 @@ function today {
 
 # Amazon Q post block. Keep at the bottom of this file.
 [[ -f "${HOME}/.local/share/amazon-q/shell/zshrc.post.zsh" ]] && builtin source "${HOME}/.local/share/amazon-q/shell/zshrc.post.zsh"
+
+if [ -e /home/balrog/.nix-profile/etc/profile.d/nix.sh ]; then . /home/balrog/.nix-profile/etc/profile.d/nix.sh; fi # added by Nix installer
