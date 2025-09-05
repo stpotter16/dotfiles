@@ -15,7 +15,7 @@ if [[ $# -ne 1 ]]; then
     exit 1
 else
     dumpFile=$1
-    if [[ -x $dumpFile ]]; then
+    if [[ -f $dumpFile ]]; then
         echo "Restoring with $dumpFile"
         # Wait for user
         read -n 1 -p "Continue?"
