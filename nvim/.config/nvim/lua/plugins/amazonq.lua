@@ -5,6 +5,7 @@ return {
     config = function()
       local amazonq = require('amazonq').setup({
         ssoStartUrl = 'https://d-90674d607c.awsapps.com/start',
+        inline_suggest = false,
       })
       vim.keymap.set('n', '<leader>q', '<cmd>AmazonQ<cr>', {})
     end
