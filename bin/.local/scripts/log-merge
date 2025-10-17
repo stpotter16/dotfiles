@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+
+# Fail on first error
+set -e
+
+# Fail on unset variables
+set -u
+
+OUTFILE="${HOME}/log-merge"
+
+if [[ $# -lt 1 ]]; then
+    echo "Too few arguments"
+    exit 1
+fi
+
+for arg in "$@"; do
+    echo "Merging logs for the following projects"
+    echo ""
+    echo " - $arg"
+    echo ""
+done
+
+echo "Writing to ${OUTFILE}"
+
+for arg in "$@"; do
+    cd "${arg}"
+    git checkout main && \
+        git pull &&
+        git --no-pager log >> "${OUTFILE}"
+done
+
