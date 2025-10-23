@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+# Fail on first error
+set -e
+
+# Fail on unset variables
+set -u
+
+WORKSPACE="hunt-hen"
+
+curl --request GET \
+  --url "https://api.bitbucket.org/2.0/repositories/${WORKSPACE}" \
+  --header "Authorization: Bearer ${BB_TOKEN}" \
+  --header 'Accept: application/json'
