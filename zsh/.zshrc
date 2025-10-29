@@ -106,6 +106,7 @@ source $ZSH/oh-my-zsh.sh
 export XDG_CONFIG_HOME="$HOME/.config"
 # Make sure my script kiddie BS is available
 export PATH=$PATH:$HOME/.local/scripts
+export PATH=$PATH:$HOME/.local/bin
 # Tmux baby
 bindkey -s ^f "tmux-sessionizer\n"
 # Alias to neovim

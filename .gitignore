@@ -1,4 +1,5 @@
 nvim/.config/go/*
 nvim/.config/create-next-app-nodejs/
 nvim/.config/nextjs-nodejs/
+nvim/.config/astro
 tailwindcss
