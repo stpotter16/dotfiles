@@ -110,8 +110,13 @@ export PATH=$PATH:$HOME/.local/bin
 # Tmux baby
 bindkey -s ^f "tmux-sessionizer\n"
 # Alias to neovim
+export EDITOR=nvim
 alias vi="nvim"
 alias vim="nvim"
+
+function fco {
+    git checkout $(git branch | fzf)
+}
 
 is_nix() {
     if [[ -n ${IN_NIX_SHELL} ]]; then
