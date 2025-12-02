@@ -7,9 +7,3 @@ My Configs
 - More zsh aliases/etc? Maybe a zsh_profile?
 - More lsp config
 
-### Fix annoying things
-- The github host verification
-- The treesitter errors
-- The need to overwrite existing files
-- Fix the go binaries not showing up
-
