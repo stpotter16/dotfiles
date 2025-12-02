@@ -159,6 +159,11 @@ function today {
     nvim +$(grep -n $(date | cut -d ' ' -f1) ${HOME}/personal/plans/week.md | cut -d : -f1) ${HOME}/personal/plans/week.md
 }
 
+tempe () {
+    cd "$(mktemp -d)"
+    chmod -R 0700 .
+}
+
 function is_nix() {
     if [[ -n ${IN_NIX_SHELL} ]]; then
         echo "(nix-shell) - "
