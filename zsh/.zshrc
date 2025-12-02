@@ -118,6 +118,11 @@ function fco {
     git checkout $(git branch | fzf)
 }
 
+tempe () {
+    cd "$(mktemp -d)"
+    chmod -R 0700 .
+}
+
 is_nix() {
     if [[ -n ${IN_NIX_SHELL} ]]; then
         echo "(nix-shell) - "
