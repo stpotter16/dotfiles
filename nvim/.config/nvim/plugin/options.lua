@@ -24,4 +24,4 @@ vim.api.nvim_set_option_value("colorcolumn", "80", {})
 
 vim.opt.undodir = os.getenv("HOME") .. "/.vim/undodir//"
 vim.opt.undofile = true
-vim.opt.swapfile = false 
+vim.opt.swapfile = false

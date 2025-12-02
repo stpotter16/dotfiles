@@ -22,10 +22,10 @@ vim.keymap.set("v", "<leader>y", "\"+y")
 vim.keymap.set("n", "<C-f>", "<cmd>silent !tmux neww tmux-sessionizer<CR>")
 
 -- Format code -- need to upgrade neovim
--- vim.keymap.set("n", "<leader>f", vim.lsp.buf.format)
+vim.keymap.set("n", "<leader>f", vim.lsp.buf.format)
 
 -- Delete and keep buffer contents
 vim.keymap.set("x", "<leader>P", [["_dP]])
 
 -- Delete to null buffer
-vim.keymap.set({"n", "v"}, "<leader>d", [["_d]])
+vim.keymap.set({ "n", "v" }, "<leader>d", [["_d]])
