@@ -9,8 +9,7 @@ My Configs
 
 ## Stuff to steal
 Source is [this awesome list](https://evanhahn.com/scripts-i-wrote-that-i-use-all-the-time/)
-- copy/past
-- tempe
+- pastas
 - mksh
 - running
 - murder
