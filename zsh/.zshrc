@@ -151,9 +151,19 @@ export TRADER_API_LOCAL_PG_PASS="localTraderPass"
 export TRADER_API_PG_DB="henlocal"
 alias trader-api-local-pg="psql -U $USER -h localhost -p 5432 -d $TRADER_API_PG_DB"
 
+# git
+alias gst='git status'
+alias ga='git add'
+alias gc='git commit'
+alias gcm='git checkout main'
+alias gd='git diff'
+alias gdc='git diff --cached'
 function fco {
-    git checkout $(git branch | fzf)
+    git branch --no-color --sort=-committerdate --format='%(refname:short)' | fzf --header 'git checkout' | xargs git checkout
 }
+alias up='git push'
+alias upf='git push --force-with-lease'
+alias pu='git pull'
 
 function today {
     nvim +$(grep -n $(date | cut -d ' ' -f1) ${HOME}/personal/plans/week.md | cut -d : -f1) ${HOME}/personal/plans/week.md
