@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+# Fail on first error
+set -e
+
+# Fail on unset variables
+set -u
+
+HASH="%C(always,yellow)%h%C(always,reset)"
+RELATIVE_TIME="%C(always,green)%ar%C(always,reset)"
+AUTHOR="%C(always,bold blue)%an%C(always,reset)"
+REFS="%C(always,red)%d%C(always,reset)"
+SUBJECT="%s"
+
+FORMAT="$HASH $RELATIVE_TIME{$AUTHOR{$REFS $SUBJECT"
+
+git log --graph --pretty="tformat:$FORMAT" $* |
+column -t -s '{' |
+less -XRS --quit-if-one-screen
