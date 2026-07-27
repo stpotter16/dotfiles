@@ -104,45 +104,28 @@ source $ZSH/oh-my-zsh.sh
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
+# WAT is this even??
+export NVM_DIR="$HOME/.config/nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+
 # Make sure fd is on path
 export PATH=$PATH:$HOME/.local/bin
+
 # Setup XDG Config
 export XDG_CONFIG_HOME="$HOME/.config"
+
 # Make sure my script kiddie BS is available
 export PATH=$PATH:$HOME/.local/scripts
 export PATH=$PATH:$HOME/.local/bin
+
 # Tmux baby
 bindkey -s ^f "tmux-sessionizer\n"
+
 # Alias to neovim
 export EDITOR=nvim
 alias vi="nvim"
 alias vim="nvim"
-
-function fco {
-    git checkout $(git branch | fzf)
-}
-
-tempe () {
-    cd "$(mktemp -d)"
-    chmod -R 0700 .
-}
-
-is_nix() {
-    if [[ -n ${IN_NIX_SHELL} ]]; then
-        echo "(nix-shell) - "
-    fi
-}
-
-# Custom Prompt
-export PROMPT="$(is_nix)${PROMPT}"
-
-if [ -e /home/balrog/.nix-profile/etc/profile.d/nix.sh ]; then . /home/balrog/.nix-profile/etc/profile.d/nix.sh; fi # added by Nix installer
-
-export EDITOR=nvim
-
-export NVM_DIR="$HOME/.config/nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 
 # Trader API local
 export TRADER_API_PG_CONTAINER="trader-api-pg"
@@ -186,3 +169,4 @@ if [ -e /home/balrog/.nix-profile/etc/profile.d/nix.sh ]; then . /home/balrog/.n
 
 # Kiro CLI post block. Keep at the bottom of this file.
 [[ -f "${HOME}/.local/share/kiro-cli/shell/zshrc.post.zsh" ]] && builtin source "${HOME}/.local/share/kiro-cli/shell/zshrc.post.zsh"
+
