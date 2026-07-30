@@ -3,5 +3,7 @@ nvim/.config/create-next-app-nodejs/
 nvim/.config/nextjs-nodejs/
 nvim/.config/astro
 nvim/.config/nvim/*
+nvim/.config/hours
+nvim/.config/mimeapps.list
 tailwindcss
 zsh/env
