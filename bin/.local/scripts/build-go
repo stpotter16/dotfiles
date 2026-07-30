@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO=${1:?Usage: run.sh <repo> <tag>}
+TAG=${2:?Usage: run.sh <repo> <tag>}
+
+fly machine run registry.fly.io/go-builder:latest \
+--env GITHUB_PAT="$GITHUB_PAT" \
+--env GITHUB_USER="$GITHUB_USER" \
+--env B2_APPLICATION_KEY_ID="$B2_APPLICATION_KEY_ID" \
+--env B2_APPLICATION_KEY="$B2_APPLICATION_KEY" \
+--env REPO="$REPO" \
+--env TAG="$TAG"
