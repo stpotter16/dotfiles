@@ -6,6 +6,9 @@ TAG=${2:?Usage: run.sh <repo> <tag>}
 
 fly machine run registry.fly.io/go-builder:latest \
 --app go-builder \
+--region iad \
+--vm-size performance-2x \
+--rm \
 --env GITHUB_PAT="$GITHUB_PAT" \
 --env GITHUB_USER="$GITHUB_USER" \
 --env B2_APPLICATION_KEY_ID="$B2_APPLICATION_KEY_ID" \
