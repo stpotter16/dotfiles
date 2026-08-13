@@ -9,9 +9,5 @@ fly machine run registry.fly.io/go-builder:latest \
 --region iad \
 --vm-size performance-2x \
 --rm \
---env GITHUB_PAT="$GITHUB_PAT" \
---env GITHUB_USER="$GITHUB_USER" \
---env B2_APPLICATION_KEY_ID="$B2_APPLICATION_KEY_ID" \
---env B2_APPLICATION_KEY="$B2_APPLICATION_KEY" \
 --env REPO="$REPO" \
 --env TAG="$TAG"
