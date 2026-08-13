@@ -2,7 +2,14 @@
 if [[ $# -eq 1 ]]; then
     selected=$1
 else
-    selected=$(fd . ~/.dotfiles ~/work ~/personal "$XDG_CONFIG_HOME" --max-depth=1 --type d | fzf)
+    path_options=("$HOME/.dotfiles" "$HOME/work" "$HOME/personal" "$HOME/development" "$XDG_CONFIG_HOME")
+    paths=()
+    for item in "${path_options[@]}"; do
+        if [[ -d $item ]]; then
+            paths+=($item)
+        fi
+    done
+    selected=$(fd . "${paths[@]}" --max-depth=1 --type d | fzf)
 fi
 
 if [[ -z $selected ]]; then
