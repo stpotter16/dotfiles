@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# Find Claude Code sessions that need attention across the whole tmux server
+# and jump straight to the pane running one.
+#
+# Usage:
+#   claude-radar          pop an fzf picker (meant to be run inside a tmux popup)
+#   claude-radar --list   print matched rows as TSV and exit (for debugging)
+
+agents_json=$(claude agents --json 2>/dev/null)
+
+if [[ -z "$agents_json" || "$agents_json" == "[]" ]]; then
+    [[ "$1" == "--list" ]] && exit 0
+    tmux display-popup -w 60 -h 6 -E "echo 'No active Claude sessions.'; sleep 1.5"
+    exit 0
+fi
+
+rows=$(echo "$agents_json" | jq -r '
+    .[] | select(
+        (.status == "waiting") or (.kind == "background" and .state == "done")
+    ) |
+    [.pid, .name, .cwd, (.waitingFor // .state // .status)] | @tsv
+')
+
+if [[ -z "$rows" ]]; then
+    [[ "$1" == "--list" ]] && exit 0
+    tmux display-popup -w 70 -h 6 -E "echo 'Nothing needs your attention right now.'; sleep 1.5"
+    exit 0
+fi
+
+declare -A ppid_of
+while read -r pid ppid; do
+    ppid_of[$pid]=$ppid
+done < <(ps -eo pid=,ppid=)
+
+is_descendant() {
+    local pid=$1 root=$2
+    while [[ -n $pid && $pid -ne 1 ]]; do
+        [[ $pid -eq $root ]] && return 0
+        pid=${ppid_of[$pid]}
+    done
+    return 1
+}
+
+panes=$(tmux list-panes -a -F '#{pane_pid}|#{session_name}:#{window_index}.#{pane_index}')
+
+entries=()
+while IFS=$'\t' read -r pid name cwd reason; do
+    target=""
+    while IFS='|' read -r pane_pid pane_target; do
+        if is_descendant "$pid" "$pane_pid"; then
+            target="$pane_target"
+            break
+        fi
+    done <<< "$panes"
+    [[ -z "$target" ]] && continue
+
+    icon="⏳"
+    case "$reason" in
+        "permission prompt") icon="🔒" ;;
+        "input needed")      icon="⌨ " ;;
+        "done")               icon="✅" ;;
+    esac
+    entries+=("${target}\t${icon} ${name}  [${reason}]  ${cwd}")
+done <<< "$rows"
+
+if [[ ${#entries[@]} -eq 0 ]]; then
+    [[ "$1" == "--list" ]] && exit 0
+    tmux display-popup -w 80 -h 6 -E "echo 'Sessions need attention but no matching tmux pane was found on this server.'; sleep 2.5"
+    exit 0
+fi
+
+if [[ "$1" == "--list" ]]; then
+    printf '%b\n' "${entries[@]}"
+    exit 0
+fi
+
+choice=$(printf '%b\n' "${entries[@]}" | fzf --delimiter='\t' --with-nth=2.. --header='Jump to a Claude session that needs you (Enter=jump, Esc=cancel)' | cut -f1)
+
+[[ -z "$choice" ]] && exit 0
+
+tmux switch-client -t "${choice%.*}"
+tmux select-pane -t "$choice"
