@@ -1,0 +1,26 @@
+{
+  "tui": "fullscreen",
+  "hooks": {
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell.exe -c \"[System.Media.SystemSounds]::Asterisk.Play()\" 2>/dev/null || true"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/approve-variants.py"
+          }
+        ]
+      }
+    ]
+  }
+}
