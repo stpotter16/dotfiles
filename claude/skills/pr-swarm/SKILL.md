@@ -33,7 +33,7 @@ thread it fixed or judged a nit, and upserting one sticky summary comment.
 Disagreement, reasoning, and rationale live in the report, not in a reply.
 
 **Never pushes to a branch that isn't the user's own, unless explicitly told
-to.** See *Step 1a: Determine mode* — on someone else's PR this skill posts
+to.** See _Step 1a: Determine mode_ — on someone else's PR this skill posts
 findings as comments only. It is always safe to invoke on a colleague's PR
 to leave automated review feedback; it will not touch their branch by
 default.
@@ -54,7 +54,7 @@ skip it.
 ## Setup (one-time, per machine)
 
 - **`BITBUCKET_API_TOKEN`** — a Bitbucket Cloud scoped API token (Settings →
-  API tokens, *not* the deprecated app passwords, which Atlassian is
+  API tokens, _not_ the deprecated app passwords, which Atlassian is
   switching off). Needs **Pull requests: Read** and **Pull requests: Write**
   scopes. Authenticate as `Authorization: Bearer $BITBUCKET_API_TOKEN` — no
   username needed for a scoped token.
@@ -135,7 +135,7 @@ Compare the PR's `author.account_id` (from the Step 1 fetch) against
 State which mode is active at the top of the terminal report and in the
 sticky summary (see Step 9) — this should never be ambiguous to the user
 reading the output. If `BITBUCKET_ACCOUNT_ID` is unset, treat it as
-review-only for safety (see *Graceful degradation*) rather than guessing.
+review-only for safety (see _Graceful degradation_) rather than guessing.
 
 ### Step 2: Gather the diff locally
 
@@ -170,6 +170,7 @@ only reason a thread has replies — a deleted root with live replies still
 needs handling).
 
 **A comment is automated if either:**
+
 - its author's `user.account_id`/`nickname` matches a known bot account you
   maintain a list of (CI bots, linters), **or**
 - its `content.raw` starts with the `🤖 Automated comment by` header — this
@@ -182,20 +183,38 @@ no mention outside a bare count in the final report ("N threads skipped —
 human participation"). If you can't confidently classify a participant,
 treat them as human.
 
-Only unresolved, non-human threads carry into Step 5's triage.
+**Exception: the sticky summary thread is never skipped, even though the
+user's replies under it make it "human."** The thread rooted at the comment
+containing `<!-- pr-swarm-summary -->` is this skill's own feedback
+channel — the user replies there specifically to answer the "Needs your
+call" table from a previous round (accept / decline / defer to a ticket /
+fold into other work). Always fetch and read every reply in this thread in
+full, regardless of who wrote it. This is a read-only exception: still never
+reply inside it, never resolve it, never treat it as a normal actionable/nit
+source — just extract the decisions from it for Step 5. A reply typically
+contains a markdown table shaped like `| File:Line | Summary | Response |
+Follow up ticket |`; parse each row's file:line, the user's response text,
+and ticket id (if any) into a lookup keyed by file:line for Step 5. If a
+row's phrasing is too loose to map to an exact file:line (e.g. the row was
+written against an earlier round's line numbers, which drift as the file
+changes), match it by the nearest schema/operation name mentioned instead of
+by exact line number.
+
+Only unresolved, non-human threads — plus the sticky summary thread's parsed
+decisions — carry into Step 5's triage.
 
 ### Step 4: Spawn the reviewer panel
 
 Four independent lenses, each blind to the others and to any existing PR
-comments — each is told it is the *sole* reviewer for its lens. Launch all
+comments — each is told it is the _sole_ reviewer for its lens. Launch all
 four as parallel Agent calls (single message, four tool uses):
 
-| Lens | Model | Focus |
-| --- | --- | --- |
-| Correctness | `sonnet` | Logic errors, edge cases, off-by-ones, broken control flow |
-| Security | `opus` | Auth, injection, secrets handling, SSRF, unsafe deserialization |
-| Performance | `sonnet` | N+1s, unnecessary re-renders/re-computation, inefficient queries or algorithms |
-| Style / simplification / tests | `haiku` | Reuse, dead code, unneeded abstraction, readability, missing/weak test coverage for the changed behavior |
+| Lens                           | Model    | Focus                                                                                                    |
+| ------------------------------ | -------- | -------------------------------------------------------------------------------------------------------- |
+| Correctness                    | `sonnet` | Logic errors, edge cases, off-by-ones, broken control flow                                               |
+| Security                       | `opus`   | Auth, injection, secrets handling, SSRF, unsafe deserialization                                          |
+| Performance                    | `sonnet` | N+1s, unnecessary re-renders/re-computation, inefficient queries or algorithms                           |
+| Style / simplification / tests | `haiku`  | Reuse, dead code, unneeded abstraction, readability, missing/weak test coverage for the changed behavior |
 
 This mapping is a starting point, not a constraint — bump a lens to `fable`
 if you judge the diff's blast radius warrants a deeper pass (touches auth,
@@ -224,6 +243,27 @@ into one worklist. **Deduplicate** first: if a fresh finding lands on the
 same file and within 5 lines of an existing open thread, treat them as the
 same item (merge bodies, don't double-post) — note the convergence, it
 raises confidence.
+
+**Check the sticky summary's parsed decisions next**, before classifying.
+For each item in the worklist, check whether its file:line (or nearest
+matching schema/operation name) has an entry in the sticky summary's reply
+lookup from Step 3:
+
+- If the user's response was a **decline** ("too broad", "not right now",
+  "assuming intentional," etc.) or a **defer to a specific ticket/future
+  work**: don't classify it as fresh actionable/nit/ambiguous. Carry it into
+  the report under a distinct "already triaged by you" bucket instead,
+  citing the ticket id or the deferred-to work item verbatim. Never
+  re-apply a fix the user already declined, even if it would otherwise
+  qualify as actionable.
+- If the panel's finding is the **same location but a materially different
+  specific claim** than what the user responded to (e.g. they addressed a
+  fallback-logic quirk at a line, the panel found a distinct reactivation
+  side effect a few lines away in the same function), don't silently fold
+  it in — note it as a related-but-new angle and say which existing
+  ticket/decision it's adjacent to, so the user can decide whether to
+  merge or split it.
+- If there's no matching entry, triage normally per the rules below.
 
 Classify each item:
 
@@ -257,7 +297,7 @@ Behavior branches on the mode determined in Step 1a.
    downgrade the item to ambiguous with a note ("fix attempted, verification
    failed — needs a human"), and move on.
 4. If verification passes: `git add`, `git commit -m "fix: address pr-swarm
-   <lens> <short description>"`, `git push` to the PR's source branch.
+<lens> <short description>"`, `git push` to the PR's source branch.
 5. Post an inline comment on the file/line (bot header + `[<lens>]` tag +
    severity + finding body + "Fixed in `<short_sha>`."), then resolve the
    thread — for a pre-existing thread, resolve that thread's root comment
@@ -334,6 +374,7 @@ bb_curl "$BB_API/repositories/$workspace/$repo_slug/pullrequests/$pr_id/comments
 
 ```markdown
 <!-- pr-swarm-summary -->
+
 > [!NOTE]
 > 🤖 Automated comment by **PR Swarm** — not written by a human
 >
@@ -344,25 +385,51 @@ bb_curl "$BB_API/repositories/$workspace/$repo_slug/pullrequests/$pr_id/comments
 <1-2 sentence assessment>
 
 ### This round
+
 - Owner mode: Fixed & pushed: <n> (<short_sha> each, listed below)
 - Review-only mode: Suggested fixes posted (unresolved, awaiting author): <n>
 - Nits resolved: <n>
 - Human-participated threads skipped: <n>
 
+### Already triaged by you — cross-checked, not re-asked
+
+Only include this section when Step 5 matched items against the sticky
+summary's parsed reply decisions. Omit it entirely on a PR's first round.
+
+| File:Line | Severity | Reviewer | Panel finding | Status                                                         |
+| --------- | -------- | -------- | ------------- | -------------------------------------------------------------- |
+| ...       | ...      | ...      | ...           | Declined / Deferred to \<ticket or work item\>, per your reply |
+
+### New angles worth folding into an existing ticket (not blocking)
+
+Only include when a finding is related-but-distinct from something you
+already decided on (see Step 5). Otherwise omit.
+
+| File:Line | Severity | Reviewer | Summary | Suggested home               |
+| --------- | -------- | -------- | ------- | ---------------------------- |
+| ...       | ...      | ...      | ...     | Fold into \<ticket\>, or new |
+
 ### ⚠️ Needs your call — ambiguous items
 
+Genuinely new items only — anything matched in the two sections above does
+not belong here too.
+
 | File:Line | Severity | Reviewer | Summary |
-| --- | --- | --- | --- |
-| ... | ... | ... | ... |
+| --------- | -------- | -------- | ------- |
+| ...       | ...      | ...      | ...     |
 
 ---
-*Automated by PR Swarm — not a human review*
+
+_Automated by PR Swarm — not a human review_
 ```
 
 Verdict tiers (reuse across rounds): CRITICAL finding present → 🚫 BLOCKED;
 2+ HIGH or 1 HIGH+2 MEDIUM → ⚠️ REQUEST CHANGES; 1 HIGH or 3+ MEDIUM → 💬
-APPROVE WITH NITS; otherwise → ✅ APPROVE. Base this on what's *left*
-(ambiguous + deferred), not on what was already fixed this round.
+APPROVE WITH NITS; otherwise → ✅ APPROVE. Base this on what's _left_ that is
+genuinely undecided (the "Needs your call" section) — items you already
+declined or deferred don't count against the verdict even though they
+remain unfixed in the diff, since blocking on a decision you've already
+made doesn't serve you.
 
 Print the same report to the terminal. This skill does not sleep or
 self-loop across separate invocations — Step 8's loop is internal to one
