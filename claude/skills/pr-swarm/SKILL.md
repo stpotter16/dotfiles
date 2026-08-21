@@ -66,58 +66,60 @@ skip it.
 - Node/TS repo: package manager auto-detected from the lockfile present at
   the repo root (`package-lock.json` → npm, `yarn.lock` → yarn,
   `pnpm-lock.yaml` → pnpm).
+- **One-time permission rule**, so none of the scripts below need a
+  per-call approval prompt: whitelist `bash ~/.claude/skills/pr-swarm/scripts/*.sh`
+  (use the `update-config` skill to add it — don't hand-edit
+  `settings.json`). Safe to pre-approve wholesale: the read-side scripts
+  touch nothing, and the write-side script (`apply-batch.sh`) enforces its
+  own repo/branch/PR-state guardrails independent of this rule, so a stale
+  or malformed manifest fails closed instead of acting on the wrong PR.
 
 If `BITBUCKET_API_TOKEN` is unset, stop immediately and tell the user how to
 create one — don't attempt any Bitbucket call without it.
 
-### API helper
+### Scripts
 
-All Bitbucket calls go through:
+All Bitbucket/git mechanics for this skill live in
+`~/.claude/skills/pr-swarm/scripts/` rather than ad-hoc bash — partly so one
+whitelisted invocation replaces what used to be many raw `curl`/`git` calls,
+and partly because shell command substitution (`$(...)`, needed for almost
+every value capture — a branch name, a merge-base sha, a paginated `.next`
+cursor) trips a blanket reject in some approval hooks; hiding it inside a
+script avoids that.
 
-```bash
-BB_API="https://api.bitbucket.org/2.0"
-bb_curl() { curl -sS -H "Authorization: Bearer ${BITBUCKET_API_TOKEN}" -H "Accept: application/json" "$@"; }
-```
+| Script                                      | Reads/writes | Purpose                                                                                              |
+| ------------------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------- |
+| `resolve-target.sh [pr-id-or-url]`          | read         | Step 1: resolve workspace/repo/PR                                                                    |
+| `gather-diff.sh <dest> <source>`            | read         | Step 2: fetch + diff + log                                                                           |
+| `bb-paginate.sh <url>`                      | read         | Step 3/9: follow `.next`, emit JSONL                                                                 |
+| `apply-batch.sh <manifest.json> <log.json>` | **write**    | Steps 6/7/9: commit+push, post comments, resolve threads, upsert sticky summary — one call per round |
+| `undo-batch.sh <log.json>`                  | **write**    | Reverts everything one `apply-batch.sh` call did, using its log                                      |
 
-Paginate every list endpoint by following the response's `.next` field until
-it's null — comments in particular are paginated at a small page size and
-silently truncating them will misclassify threads.
+Each script documents its own usage/JSON shape in a header comment — read it
+before calling if a step below doesn't spell out every field.
 
 ## Workflow
 
 ### Step 1: Resolve the PR, workspace, and repo
 
-Derive `workspace`/`repo_slug` from the origin remote:
-
 ```bash
-git remote get-url origin
-# https://bitbucket.org/<workspace>/<repo_slug>.git  or
-# git@bitbucket.org:<workspace>/<repo_slug>.git
+bash ~/.claude/skills/pr-swarm/scripts/resolve-target.sh "$ARGUMENTS"
 ```
 
-If `$ARGUMENTS` looks like a PR number or a Bitbucket PR URL, use it
-directly:
+(pass no argument to auto-detect the OPEN PR for the current branch instead).
+Prints one JSON object: `workspace`, `repo_slug`, `pr_id`, `state`,
+`source_branch`, `destination_branch`, `source_commit`,
+`author_account_id`. Record all of it.
 
-```bash
-bb_curl "$BB_API/repositories/$workspace/$repo_slug/pullrequests/$pr_id"
-```
-
-Otherwise detect the PR open for the current branch:
-
-```bash
-branch=$(git branch --show-current)
-bb_curl "$BB_API/repositories/$workspace/$repo_slug/pullrequests?q=source.branch.name%3D%22$branch%22%20AND%20state%3D%22OPEN%22"
-```
-
-If none found, ask the user for a PR number/URL and stop.
-
-Record: PR id, `state`, `source.branch.name`, `destination.branch.name`,
-`source.commit.hash` (current HEAD). If `state != "OPEN"`, tell the user and
-stop — nothing to triage on a merged/declined PR.
+- Exit 2 → no PR found / couldn't parse the argument: ask the user for a PR
+  number/URL and stop.
+- Exit 3 → `BITBUCKET_API_TOKEN` unset: see Setup.
+- `state != "OPEN"`: tell the user and stop — nothing to triage on a
+  merged/declined PR.
 
 ### Step 1a: Determine mode — owner or review-only
 
-Compare the PR's `author.account_id` (from the Step 1 fetch) against
+Compare `author_account_id` (from the Step 1 output) against
 `$BITBUCKET_ACCOUNT_ID`:
 
 - **Match, or `--allow-push` was passed** → **owner mode**: Step 6 applies,
@@ -140,24 +142,23 @@ review-only for safety (see _Graceful degradation_) rather than guessing.
 ### Step 2: Gather the diff locally
 
 ```bash
-git fetch origin "$destination_branch" "$source_branch"
-base=$(git merge-base "origin/$destination_branch" "origin/$source_branch")
-git diff "$base"..."origin/$source_branch" --name-only
-git diff "$base"..."origin/$source_branch"
-git log "$base"..."origin/$source_branch" --oneline
+bash ~/.claude/skills/pr-swarm/scripts/gather-diff.sh "$destination_branch" "$source_branch"
 ```
 
-Store the changed-file list, full diff, commit log, and current HEAD sha.
-Everything after this step operates on this diff until a fix is pushed and
-the loop (Step 8) re-gathers it.
+Prints `===BASE===` / `===CHANGED_FILES===` / `===DIFF===` / `===LOG===`
+sections. Store the merge-base sha, changed-file list, full diff, and commit
+log. Everything after this step operates on this diff until a fix is pushed
+and the loop (Step 8) re-gathers it.
 
 ### Step 3: Fetch and classify existing comment threads
 
 ```bash
-bb_curl "$BB_API/repositories/$workspace/$repo_slug/pullrequests/$pr_id/comments?pagelen=50"
+bash ~/.claude/skills/pr-swarm/scripts/bb-paginate.sh \
+  "https://api.bitbucket.org/2.0/repositories/$workspace/$repo_slug/pullrequests/$pr_id/comments?pagelen=50"
 ```
 
-Follow `.next` until exhausted. Each comment has `id`, `content.raw`,
+Prints one JSON object per line, already flattened across every page. Each
+comment has `id`, `content.raw`,
 `user`, `deleted`, `parent` (present on replies, absent on thread roots),
 `inline.path` / `inline.to` (absent on top-level PR comments), and
 `resolution` (present + non-null means already resolved — skip these
@@ -280,9 +281,13 @@ Classify each item:
 - **Ambiguous** — everything else: architectural judgement calls, multi-file
   scope, or genuine uncertainty about which fix is right.
 
-### Step 6: Act on actionable items — owner mode pushes, review-only comments
+### Step 6: Act on actionable items — queue into this round's batch
 
-Behavior branches on the mode determined in Step 1a.
+Behavior branches on the mode determined in Step 1a. **Neither mode touches
+Bitbucket or the remote branch directly in this step** — every mutation for
+the round is queued into an in-memory manifest and fired once, via
+`apply-batch.sh`, in Step 7b. This is what turns "one Bitbucket write per
+finding" into "one approved call per round."
 
 **Owner mode** — for each actionable item:
 
@@ -293,63 +298,83 @@ Behavior branches on the mode determined in Step 1a.
    - If no test/lint script is discoverable, use `AskUserQuestion` once per
      run to ask for the right command rather than pushing unverified — don't
      silently skip verification.
-3. If verification fails, **do not commit or push**. Revert the edit,
+3. If verification fails, **do not queue a commit**. Revert the edit,
    downgrade the item to ambiguous with a note ("fix attempted, verification
    failed — needs a human"), and move on.
-4. If verification passes: `git add`, `git commit -m "fix: address pr-swarm
-<lens> <short description>"`, `git push` to the PR's source branch.
-5. Post an inline comment on the file/line (bot header + `[<lens>]` tag +
-   severity + finding body + "Fixed in `<short_sha>`."), then resolve the
-   thread — for a pre-existing thread, resolve that thread's root comment
-   id; for a fresh finding, resolve the comment you just posted (only valid
-   on a top-level, on-diff comment — this qualifies).
+4. If verification passes: queue one manifest `commits[]` entry — `{message:
+"fix: address pr-swarm <lens> <short description>", files: [...]}`. Keep
+   each actionable item as its own commit even though they all land in one
+   push; that's what lets `undo-batch.sh` revert a single bad fix later
+   without touching the others in the round.
+5. Queue one manifest `posts[]` entry for the file/line — bot header +
+   `[<lens>]` tag + severity + finding body + `"Fixed in this round's push."`
+   (the actual short sha isn't known until `apply-batch.sh` commits it, so
+   don't reference one). Set `resolve` to the pre-existing thread's root
+   comment id if this fixed an existing thread, or `"self"` if it's a fresh
+   finding.
 
 **Review-only mode** — for each actionable item: never touch the working
-tree, never run the verify command, never commit or push. Post an inline
-comment on the file/line (bot header + `[<lens>]` tag + severity + finding
-body + a concrete suggested fix written out in prose or a fenced code
-snippet — enough that the PR's author could apply it themselves) and leave
-the thread **unresolved**. This is left open deliberately — an actionable
-finding from a reviewer's automated pass is a request for the author to
-act, not a settled matter, and resolving your own review comment would
-hide it before they've seen it.
+tree, never run the verify command, never queue a commit. Queue one manifest
+`posts[]` entry (bot header + `[<lens>]` tag + severity + finding body + a
+concrete suggested fix written out in prose or a fenced code snippet — enough
+that the PR's author could apply it themselves) with `resolve: null`. Left
+unresolved deliberately — an actionable finding from an automated pass is a
+request for the author to act, not a settled matter, and resolving your own
+review comment would hide it before they've seen it.
 
-To resolve a thread:
+### Step 7: Resolve nits — queue into the same batch
 
-```bash
-bb_curl -X POST "$BB_API/repositories/$workspace/$repo_slug/pullrequests/$pr_id/comments/$comment_id/resolve"
-```
-
-### Step 7: Resolve nits
-
-- **Fresh NIT findings from the panel:** in both modes, post the inline
-  comment (bot header + tag + body), then immediately resolve it. This is
-  always safe — resolving your own just-posted comment, not someone else's
-  thread — and leaves a record anchored to the diff even though no action
-  was needed.
-- **Existing NIT threads (owner mode):** resolve directly, no reply. Record
-  the one-line reason ("cosmetic — no functional risk", "duplicate of
-  <other finding>", "already addressed by <sha>") in the report.
-- **Existing NIT threads (review-only mode):** don't resolve — it isn't
-  this skill's thread to close on someone else's PR. Just record the
+- **Fresh NIT findings from the panel:** in both modes, queue a `posts[]`
+  entry (bot header + tag + body) with `resolve: "self"`. Always safe —
+  resolving your own just-posted comment, not someone else's thread — and
+  leaves a record anchored to the diff even though no action was needed.
+- **Existing NIT threads (owner mode):** queue a `resolve_only[]` entry
+  `{comment_id}`, no reply. Record the one-line reason ("cosmetic — no
+  functional risk", "duplicate of <other finding>", "already addressed by
+  <sha>") in the report.
+- **Existing NIT threads (review-only mode):** queue nothing — it isn't this
+  skill's thread to close on someone else's PR. Just record the
   classification and reason in the report; leave the thread as-is.
 
-Post an inline comment:
+### Step 7b: Fire this round's batch
+
+Assemble the manifest (`workspace`, `repo_slug`, `pr_id`, `expected_branch:
+source_branch`, plus `commits`/`posts`/`resolve_only` from Steps 6–7 —
+**not** `sticky_summary` yet, it's composed in Step 9 from this call's
+actual results) and write it to a scratch path, e.g.
+`round-<N>-manifest.json`.
+
+**Before calling the script**, print the batch's actual content as plain
+chat text — every commit message, every comment body, what's about to be
+pushed. This is informational, not a confirmation gate: don't wait for a
+reply, proceed immediately after. It's what makes an empty round obviously
+different from a 6-item round in the transcript, without costing a prompt.
 
 ```bash
-bb_curl -X POST "$BB_API/repositories/$workspace/$repo_slug/pullrequests/$pr_id/comments" \
-  -H "Content-Type: application/json" \
-  -d '{"content":{"raw":"<comment body>"},"inline":{"path":"<file>","to":<line>}}'
+bash ~/.claude/skills/pr-swarm/scripts/apply-batch.sh round-<N>-manifest.json round-<N>-log.json
 ```
+
+- **Exit 0:** everything in the manifest succeeded. Keep `round-<N>-log.json`
+  around — it's the undo record (`undo-batch.sh round-<N>-log.json`) if the
+  user later wants this round reverted.
+- **Exit 1:** partial failure — some mutations landed, some didn't. Read
+  `round-<N>-log.json`'s `failures[]` array; for each failed item, downgrade
+  it to ambiguous in the report with the failure reason. Everything that did
+  succeed is still recorded in the same log and still undoable.
+- **Exit 2:** a guardrail tripped (current branch / repo / PR state doesn't
+  match what Step 1 recorded) — **nothing was done**. Stop and surface the
+  script's error verbatim; this means the PR moved out from under the run
+  (merged, branch changed) and needs a fresh Step 1, not a retry.
 
 ### Step 8: Loop
 
-After a pass applies fixes and resolves nits, check whether anything
-qualifies as newly actionable or nit:
+After Step 7b's batch lands, check whether anything qualifies as newly
+actionable or nit:
 
-- If commits were pushed this pass, re-gather the diff (Step 2) against the
-  new HEAD and re-run the panel (Step 4) only if the new diff touches a
-  non-doc file (skip re-review for pure `.md`/comment-only follow-ups).
+- If `round-<N>-log.json` recorded any commits, re-gather the diff (Step 2)
+  against the new HEAD and re-run the panel (Step 4) only if the new diff
+  touches a non-doc file (skip re-review for pure `.md`/comment-only
+  follow-ups).
 - Re-fetch comment threads (Step 3) in case resolving one surfaced a reply
   or a teammate reacted mid-run.
 - Re-triage (Step 5) the combined state.
@@ -363,14 +388,12 @@ prior fixes.
 ### Step 9: Sticky summary + final report
 
 Maintain exactly one top-level PR comment, marked `<!-- pr-swarm-summary -->`.
-Find it via:
-
-```bash
-bb_curl "$BB_API/repositories/$workspace/$repo_slug/pullrequests/$pr_id/comments?pagelen=50" \
-  | jq '[.values[] | select(.content.raw | contains("<!-- pr-swarm-summary -->"))][0].id'
-```
-
-`PUT` to that comment id if found, otherwise `POST` a new one. Body shape:
+Its id, if it already exists, was already visible in Step 3's `bb-paginate.sh`
+output (`content.raw` containing `<!-- pr-swarm-summary -->`) — no extra
+fetch needed. Compose this round's body below and set it as
+`manifest.sticky_summary` (`{comment_id: <id or null>, body: "..."}`) before
+firing Step 7b's batch; `apply-batch.sh` handles the PUT-if-found /
+POST-otherwise. Body shape:
 
 ```markdown
 <!-- pr-swarm-summary -->
@@ -431,6 +454,14 @@ declined or deferred don't count against the verdict even though they
 remain unfixed in the diff, since blocking on a decision you've already
 made doesn't serve you.
 
+Compose this body using `round-<N>-log.json`'s **actual** results (commit
+shas, which posts/resolves succeeded, any `failures[]`) — not the manifest's
+intended actions, since Step 7b tolerates partial failure. Fire it as its
+own tiny `apply-batch.sh` call (empty `commits`/`posts`/`resolve_only`, just
+`sticky_summary` set) against a fresh `round-<N>-summary-manifest.json` /
+`round-<N>-summary-log.json` pair — this runs every round, right after
+Step 7b, before Step 8 decides whether to loop again.
+
 Print the same report to the terminal. This skill does not sleep or
 self-loop across separate invocations — Step 8's loop is internal to one
 run; re-invoke it later (manually, or wrapped in `/loop`) to pick up new
@@ -454,3 +485,13 @@ commits or comments.
   flagging in the report that thread state may be incomplete.
 - **A lens agent fails or times out:** proceed with the remaining lenses,
   note in the report which lens was unavailable this round.
+- **`apply-batch.sh` exits 2 (guardrail):** see Step 7b — stop, don't retry,
+  don't fall back to raw `bb_curl`/`git` calls to route around it. The
+  guardrail exists specifically to catch the PR having moved out from under
+  the run.
+- **The user asks to undo a round after the fact** (they didn't like a fix
+  or a comment once they saw it land): run
+  `undo-batch.sh round-<N>-log.json` for the round in question — it reverts
+  the commits, deletes the posted comments, and reopens anything it
+  resolved. It's best-effort per item; report anything it couldn't undo
+  (e.g. a revert conflict) rather than silently leaving it half-done.
