@@ -1,0 +1,79 @@
+#!/bin/bash
+# claude-sandbox: Launch Claude Code in an rootless, network isolated container
+# 
+# Usage:
+#   claude-sandbox [local-dir]
+#   claude-sandbox --allow-hosts "host1 host2 ..." [local-dir]
+#
+# If local-dir is omitted, defaults to current directory
+set -euo pipefail
+
+IMAGE="claude-code-sandbox"
+LOCAL_DIR="$(pwd)"
+ALLOWED_HOSTS=""
+
+usage() {
+    cat << EOF
+Usage: $(basename "$0") [options] [local-dir]
+
+Options:
+  --allow-hosts "h1 h2 ..."  Extra hosts to allow, added to the built-in defaults
+  --image NAME               Image to run (default: ${IMAGE})
+  -h, --help                 Show this help
+
+If local-dir omitted, the current directory is used.
+EOF
+}
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --allow-hosts)
+            ALLOWED_HOSTS="$2"
+            shift 2
+            ;;
+        --image)
+            IMAGE="$2"
+            shift 2
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            LOCAL_DIR="$1"
+            shift
+            ;;
+    esac
+done
+
+LOCAL_DIR="$(cd "$LOCAL_DIR" && pwd)"
+
+CONTAINER_NAME="claude-sandbox-$(date +%s)-$$"
+
+RUN_ARGS=(
+    -d
+    --name "$CONTAINER_NAME"
+    --cap-add NET_ADMIN
+    --security-opt no-new-privileges
+    --read-only
+    --volume "${LOCAL_DIR}:/data"
+    --volume "${HOME}/.claude/.credentials.json:/root/.claude/.credentials.json"
+    --tmpfs /tmp
+)
+
+if [ -n "$ALLOWED_HOSTS" ]; then
+    RUN_ARGS+=(--env "EXTRA_ALLOWED_HOSTS=${ALLOWED_HOSTS}")
+fi
+
+echo "Mounting: ${LOCAL_DIR} -> /data"
+if [ -n "$ALLOWED_HOSTS" ]; then
+    echo "Extra allowed hosts: ${ALLOWED_HOSTS}"
+fi
+
+podman run "${RUN_ARGS[@]}" "$IMAGE" > /dev/null
+echo "Running in the background as ${CONTAINER_NAME} (podman logs -f ${CONTAINER_NAME} to follow)"
+
+EXIT_CODE=$(podman wait "$CONTAINER_NAME")
+podman logs "$CONTAINER_NAME"
+podman rm "$CONTAINER_NAME" > /dev/null
+exit "$EXIT_CODE"
