@@ -7,7 +7,7 @@
 #
 # Usage: apply-batch.sh <manifest.json> <round-log-out.json>
 #
-# Manifest schema:
+# Manifest schema (kept in sync with SKILL.md Step 7b — update both):
 # {
 #   "workspace": "...", "repo_slug": "...", "pr_id": 123,
 #   "expected_branch": "feature/xyz",

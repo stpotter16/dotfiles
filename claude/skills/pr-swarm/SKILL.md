@@ -95,8 +95,12 @@ script avoids that.
 | `apply-batch.sh <manifest.json> <log.json>` | **write**    | Steps 6/7/9: commit+push, post comments, resolve threads, upsert sticky summary — one call per round |
 | `undo-batch.sh <log.json>`                  | **write**    | Reverts everything one `apply-batch.sh` call did, using its log                                      |
 
-Each script documents its own usage/JSON shape in a header comment — read it
-before calling if a step below doesn't spell out every field.
+Each script documents its own usage/JSON shape in a header comment, but the
+one you'll need every round — `apply-batch.sh`'s manifest — is spelled out in
+full in Step 7b below, so you shouldn't need to open the script itself in
+normal operation. Only fall back to a script's header comment for shapes not
+already spelled out inline in the steps above (e.g. if a script's behavior
+changes and this doc drifts).
 
 ## Workflow
 
@@ -342,7 +346,22 @@ Assemble the manifest (`workspace`, `repo_slug`, `pr_id`, `expected_branch:
 source_branch`, plus `commits`/`posts`/`resolve_only` from Steps 6–7 —
 **not** `sticky_summary` yet, it's composed in Step 9 from this call's
 actual results) and write it to a scratch path, e.g.
-`round-<N>-manifest.json`.
+`round-<N>-manifest.json`. Full manifest schema (mirrors `apply-batch.sh`'s
+header comment, kept here so you don't need to open the script for it):
+
+```jsonc
+{
+  "workspace": "...",
+  "repo_slug": "...",
+  "pr_id": 123,
+  "expected_branch": "feature/xyz",
+  "commits": [{ "message": "...", "files": ["a.ts", "b.ts"] }],
+  "posts": [{ "path": "a.ts", "line": 42, "body": "...", "resolve": "self" }],
+  // "line" omitted/null => top-level comment. "resolve": "self" | <existing comment id> | null
+  "resolve_only": [{ "comment_id": 456 }],
+  "sticky_summary": { "comment_id": 789, "body": "..." }, // comment_id null/absent => create new
+}
+```
 
 **Before calling the script**, print the batch's actual content as plain
 chat text — every commit message, every comment body, what's about to be
